@@ -1,0 +1,55 @@
+---
+- hosts: local_vm
+  tasks:
+    - name: Get os version
+      shell: uname -r
+      register: os_version
+
+    - name: Install docker dependencies
+      command: apt-get install -y linux-image-extra-{{ os_version.stdout }}
+
+    - name: Instal docker repository
+      apt: name={{item}} state=installed
+      with_items:
+        - linux-image-extra-virtual
+        - ca-certificates
+        - curl
+        - software-properties-common
+        - python-yaml 
+        - python-jinja2 
+        - python-pycurl
+
+    - name: Dockers official GPG Key
+      shell: curl -fsSL https://download.docker.com/linux/ubuntu/gpg | apt-key add -
+
+    - name: Veriying fingerprint
+      shell: apt-key fingerprint 0EBFCD88
+
+    - name: find lsb_release
+      shell: lsb_release -cs
+      register: lsb_release_ver
+
+    - name : add docker repository
+      apt_repository:
+        repo: deb [arch=amd64] https://download.docker.com/linux/ubuntu {{ lsb_release_ver.stdout }} stable
+        state: present
+
+    - name: update repo
+      apt:
+       update_cache: yes
+
+    - name: install docker ce
+      apt: name=docker-ce state=installed
+   
+    - name: start docker service
+      service:
+        name: docker
+        state: started
+
+    - name: stop apache2
+      service: 
+        name: apache2
+        state: stopped
+
+    - name: Deploy docker container
+      shell: sh /root/vagrant_ansible_docker/start_docker.sh > /tmp/start_docker.log
